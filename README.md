@@ -4,6 +4,14 @@
 
 MameProxy is a Windows virtual file system (using WinFsp) designed for MAME ROM management. It implements a **Lazy Download** mechanism: when MAME requests a ROM that doesn't exist locally, MameProxy automatically downloads it from a configured remote server and serves it seamlessly.
 
+## Motivation
+
+MAME updates almost monthly, and with each update, ROM filenames and contents can change. This creates a vicious cycle where players are forced to download tens of gigabytes of update packages just to keep their sets compatible with the latest version. There is nothing more frustrating than wanting to play a quick game like `pacman`, only to find it won't start due to a version mismatch in your ROM set.
+
+Most players only frequently play a small handful of games. Services like `mdk.cab` stay current with the latest MAME-to-ROM mappings. MameProxy was born from this frustration: **"The proxy only fetches the correct ROM when you actually want to play the game."**
+
+It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop managing files and start playing. XDorz
+
 ## Key Features
 
 *   **On-Demand Download**: Files are only downloaded when accessed, saving local disk space.
