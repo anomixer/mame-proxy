@@ -65,7 +65,7 @@ if %errorlevel% neq 0 (
 echo.
 echo ==========================================
 echo [SUCCESS] Build completed successfully!
-echo Executable location: build\Release\MameCloudRompath.exe
+echo Executable location: build\Release\mcr.exe
 echo ==========================================
 echo.
 cd ..

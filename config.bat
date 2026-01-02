@@ -32,9 +32,9 @@ echo BASE_URL=https://mdk.cab/download/>> mamefs.ini
 
 echo [OK] Settings saved to mamefs.ini
 
-:: 4. Check for MameCloudRompath.exe
-if not exist "build\Release\MameCloudRompath.exe" (
-    echo [INFO] MameCloudRompath.exe not found. Calling build.bat...
+:: 4. Check for mcr.exe
+if not exist "build\Release\mcr.exe" (
+    echo [INFO] mcr.exe not found. Calling build.bat...
     call build.bat
     if errorlevel 1 (
         echo [ERROR] Build failed. Please check the errors above.
@@ -54,7 +54,7 @@ if not exist "build\Release\MameCloudRompath.exe" (
     echo echo Mount Point: %%MOUNT_POINT%%
     echo echo Cache Dir: %%CACHE_DIR%%
     echo echo URL: %%BASE_URL%%
-    echo "%%~dp0build\Release\MameCloudRompath.exe" -m %%MOUNT_POINT%% -c "%%CACHE_DIR%%" -u %%BASE_URL%%
+    echo "%%~dp0build\Release\mcr.exe" -m %%MOUNT_POINT%% -c "%%CACHE_DIR%%" -u %%BASE_URL%%
 ) > mcr.bat
 
 echo ==========================================

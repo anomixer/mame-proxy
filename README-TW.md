@@ -44,20 +44,20 @@ MAME 幾乎每個月都會更新，且每次更新時 ROM 的檔名與內容都�
 1.  使用 Visual Studio 2022 開啟專案資料夾。
 2.  VS 會自動配置 CMake。
 3.  選擇 `Release` 配置並執行「建置全部」。
-4.  編譯產物將位於 `build/Release/MameCloudRompath.exe`。
+4.  編譯產物將位於 `build/Release/mcr.exe`。
 
 ## 使用方法
 
 使用命令列啟動程式：
 
 ```cmd
-MameCloudRompath.exe -m <掛載點> -c <快取路徑> -u <遠端URL>
+mcr.exe -m <掛載點> -c <快取路徑> -u <遠端URL>
 ```
 
 ### 範例：智慧路由模式
 
 ```cmd
-MameCloudRompath.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
+mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
 ```
 
 *   **自動偵測**：程式會依據 MAME 請求的檔案類型（.zip 或 .7z）自動在網址後方補上 `split/` 或 `standalone/`。
@@ -98,7 +98,7 @@ MameCloudRompath 運作的流程如下，讓您了解它是如何實現「免除
 ## 注意事項
 
 *   **目錄列表**：為了效能考量，`dir Z:\` 只會顯示「已下載」的檔案。如果您知道 ROM 名稱，直接執行即可觸發下載。
-*   **中斷連線**：關閉 `MameCloudRompath.exe` 視窗將會自動卸載虛擬磁碟。
+*   **中斷連線**：關閉 `mcr.exe` 視窗將會自動卸載虛擬磁碟。
 
 ## 技術架構
 

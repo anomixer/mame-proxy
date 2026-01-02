@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(MameCloudRompath)
 
-set(EXECUTABLE_NAME MameCloudRompath)
+set(EXECUTABLE_NAME mcr)
 
 set(CMAKE_CXX_STANDARD 17)
 

@@ -44,20 +44,20 @@ This project uses CMake for building:
 1.  Open the project folder in Visual Studio 2022.
 2.  VS will automatically configure CMake.
 3.  Select the `Release` configuration and "Build All".
-4.  The executable will be generated at `build/Release/MameCloudRompath.exe`.
+4.  The executable will be generated at `build/Release/mcr.exe`.
 
 ## Usage
 
 Start the program from the command line:
 
 ```cmd
-MameCloudRompath.exe -m <MountPoint> -c <CacheDir> -u <RemoteURL>
+mcr.exe -m <MountPoint> -c <CacheDir> -u <RemoteURL>
 ```
 
 ### Example: Smart Routing Mode
 
 ```cmd
-MameCloudRompath.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
+mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
 ```
 
 *   **Auto-Detection**: The application automatically appends `split/` or `standalone/` to the URL based on whether MAME requests a `.zip` or `.7z` file.
@@ -97,7 +97,7 @@ To keep the application lightweight and efficient, MCR focus on files that chang
 ## Important Notes
 
 *   **Directory Listing**: For performance, `dir Z:\` only shows locally cached files. If you know the ROM name, running it directly will trigger the download.
-*   **Termination**: Closing the `MameCloudRompath.exe` window will automatically unmount the virtual drive.
+*   **Termination**: Closing the `mcr.exe` window will automatically unmount the virtual drive.
 
 ## Technical Architecture
 

@@ -4,10 +4,9 @@
 #include <vector>
 
 void print_usaeg() {
-  std::cout
-      << "Usage: MameCloudRompath -m <MountPoint> -c <CacheDir> -u <BaseUrl>"
-      << std::endl;
-  std::cout << "Example: MameCloudRompath -m Z: -c C:\\MAME\\romcache -u "
+  std::cout << "Usage: mcr -m <MountPoint> -c <CacheDir> -u <BaseUrl>"
+            << std::endl;
+  std::cout << "Example: mcr -m Z: -c C:\\MAME\\romcache -u "
                "https://mdk.cab/download/"
             << std::endl;
 }
