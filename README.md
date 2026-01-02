@@ -10,7 +10,7 @@ MAME updates almost monthly, and with each update, ROM filenames and contents ca
 
 Most players only frequently play a small handful of games. Services like `mdk.cab` stay current with the latest MAME-to-ROM mappings. MameProxy was born from this frustration: **"The proxy only fetches the correct ROM when you actually want to play the game."**
 
-It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop managing files and start playing.
+It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop managing files and start playing. XDorz
 
 ## Key Features
 
@@ -97,4 +97,4 @@ MameProxy acts as an intelligent intermediary. Here is the sequence of events du
 
 ---
 Developer: Antigravity (Advanced Agentic Coding Team)
-Repository: [GitHub - anomixer/mame-proxy](https://github.com/anomixer/mame-proxy)
+Repository: [GitHub - anomixer/mameproxy](https://github.com/anomixer/mameproxy)

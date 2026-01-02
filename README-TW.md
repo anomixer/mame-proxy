@@ -10,13 +10,13 @@ MAME 幾乎每個月都會更新，且每次更新時 ROM 的檔名與內容都�
 
 大多數玩家經常玩的其實只有那幾款遊戲，而 `mdk.cab` 幾乎即時更新了與最新 MAME 版本對應的 ROM。這就是開發 MameProxy 的初衷：**「只有當你想玩某款遊戲時，代理程式才即時去抓取對應的 ROM」**。
 
-讓玩家免於愁 ROM 怎麼搞，解決那 95% 玩家都會遇到的「ROM 版本地獄」，把時間留給遊戲，而不是研究檔案。
+讓玩家免於愁 ROM 怎麼搞，解決那 95% 玩家都會遇到的「ROM 版本地獄」，把時間留給遊戲，而不是研究檔案。 XDorz
 
 ## 主要特色
 
 *   **即時下載**：只有在開啟檔案時才會觸發下載，節省硬碟空間。
 *   **WinFsp 整合**：高效能的虛擬磁碟驅動，操作流暢。
-*   **多模式支援**：支援 `Standalone` (7z) 與 `Split` (zip) 等不同的 ROM 存放結構。
+*   **智慧路由**：針對 `mdk.cab` 自動處理 `Standalone` (7z) 與 `Split` (zip) 目錄結構。
 *   **本地快取**：下載過的檔案會儲存在本地目錄，下次開啟無需重新下載。
 *   **非管理者執行**：支援以磁碟模式 (Disk Mode) 掛載，普通使用者權限即可運作。
 
@@ -37,6 +37,13 @@ MAME 幾乎每個月都會更新，且每次更新時 ROM 的檔名與內容都�
 4.  執行 `mame-proxy.bat` 即可啟動代理程式。
 
 ## 編譯步驟 (手動)
+
+本專案使用 CMake 進行建置：
+
+1.  使用 Visual Studio 2022 開啟專案資料夾。
+2.  VS 會自動配置 CMake。
+3.  選擇 `Release` 配置並執行「建置全部」。
+4.  編譯產物將位於 `build/Release/MameProxy.exe`。
 
 ## 使用方法
 
@@ -91,4 +98,4 @@ MameProxy 運作的流程如下，讓您了解它是如何實現「免除 ROM �
 
 ---
 開發者：Antigravity (Advanced Agentic Coding Team)
-專案地址：[GitHub - anomixer/mame-proxy](https://github.com/anomixer/mame-proxy)
+專案地址：[GitHub - anomixer/mameproxy](https://github.com/anomixer/mameproxy)
