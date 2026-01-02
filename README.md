@@ -10,7 +10,7 @@ MAME updates almost monthly, and with each update, ROM filenames and contents ca
 
 Most players only frequently play a small handful of games. Services like `mdk.cab` stay current with the latest MAME-to-ROM mappings. MameProxy was born from this frustration: **"The proxy only fetches the correct ROM when you actually want to play the game."**
 
-It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop managing files and start playing. XDorz
+It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop managing files and start playing.
 
 ## Key Features
 
@@ -71,6 +71,18 @@ Once MameProxy is running, point MAME's `rompath` to the mount point:
 ```cmd
 mame.exe -rompath Z:\ pacman
 ```
+
+## How it Works
+
+MameProxy acts as an intelligent intermediary. Here is the sequence of events during a game startup:
+
+1.  **Interception**: When MAME searches for a ROM in its `-rompath Z:\`, it sends a standard file open request to Windows.
+2.  **WinFsp Hand-off**: WinFsp intercepts this request and passes it to the user-mode MameProxy application.
+3.  **Local Cache Check**: MameProxy checks your local cache directory (provided via `-c`).
+    *   **Cache Hit**: If the file already exists locally, it is served immediately from your disk.
+    *   **Cache Miss**: If the file is missing, MameProxy proceeds to the next step.
+4.  **On-the-Fly Download**: MameProxy constructs the correct URL based on the file extension and fetches it from the remote server (e.g., `mdk.cab`).
+5.  **Seamless Delivery**: Once the download completes, MameProxy provides the file handle back to MAME. MAME continues to load the game as if the file had always been there.
 
 ## Important Notes
 
