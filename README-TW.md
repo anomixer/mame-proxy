@@ -1,5 +1,7 @@
 # MameProxy
 
+[English Version](./README.md)
+
 MameProxy 是一個基於 Windows WinFsp (Windows File System Proxy) 的虛擬檔案系統，專為 MAME ROM 管理設計。它實現了「延遲下載 (Lazy Download)」機制：當 MAME 請求一個本地不存在的 ROM 時，MameProxy 會自動從指定的遠端伺服器下載該檔案，並無縫提供給 MAME 使用。
 
 ## 主要特色

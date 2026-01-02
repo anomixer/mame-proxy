@@ -1,5 +1,7 @@
 # MameProxy
 
+[繁體中文版](./README-TW.md)
+
 MameProxy is a Windows virtual file system (using WinFsp) designed for MAME ROM management. It implements a **Lazy Download** mechanism: when MAME requests a ROM that doesn't exist locally, MameProxy automatically downloads it from a configured remote server and serves it seamlessly.
 
 ## Key Features
