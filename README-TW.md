@@ -26,7 +26,9 @@ MAME 幾乎每個月都會更新，且每次更新時 ROM 的檔名與內容都�
 2.  **WinFsp**: 必須安裝 WinFsp 驅動程式。
     *   下載地址：[WinFsp 官方網站](https://winfsp.dev/)
     *   **重要**：安裝時請務必勾選 **「Developer」** 元件（包含開發用標頭檔與函式庫）。
-3.  **Visual Studio 2022**: 用於編譯專案 (需包含 C++ 桌面開發組件)。
+3.  **MAME (最新版本)**：遊玩遊戲的核心程式。
+    *   下載地址：[MAME 官方網站](https://www.mamedev.org/release.html)
+4.  **Visual Studio 2022 (選配)**：僅當您想要自行從原始碼編譯專案時才需要 (需包含 C++ 桌面開發組件)。
 
 ## 快速設定 (推薦使用)
 

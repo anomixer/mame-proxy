@@ -11,6 +11,7 @@
 *   **全自動雙視窗啟動**：`mcr.bat` 現在會自動執行雙視窗策略：一個視窗執行 MCR 本體，並同步開啟另一個視窗自動 `cd` 進 MAME 目錄並執行 `mame.exe -rompath`。
 *   **免編譯分發**：調整 `.gitignore` 策略，將 `build/Release/` 下的執行檔納入版本控制，方便沒有開發環境的玩家直接下載使用。
 *   **互動語義化**：主程式新增 v0.1 版本顯示，並在Dispatcher啟動後加入終止操作提示 (Ctrl+C)。
+*   **需求文檔優化**：在系統需求中正式加入 MAME 下載連結，並將 Visual Studio 2022 標記為原始碼編譯專用的「選配」組件。
 
 ## 3. 專案品牌重塑 (Rebranding)
 *   **正式更名**：專案名稱正式從 `MameProxy` 更改為 **MameCloudRompath (MCR)**，精確傳達了「雲端 ROM 路徑」的核心價值。

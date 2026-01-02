@@ -26,7 +26,9 @@ It's designed to solve the "ROM Version Hell" faced by 95% of players. Stop mana
 2.  **WinFsp**: You must install the WinFsp driver.
     *   Download: [WinFsp Official Website](https://winfsp.dev/)
     *   **Note**: Make sure to select the **"Developer"** component during installation (includes necessary headers and libraries).
-3.  **Visual Studio 2022**: Required to build the project (with C++ Desktop Development workload).
+3.  **MAME (Latest version)**: Required to play the games.
+    *   Download: [MAME Official Website](https://www.mamedev.org/release.html)
+4.  **Visual Studio 2022 (Optional)**: Only required if you want to build the project from source. (needs C++ Desktop Development workload).
 
 ## Quick Setup (Recommended)
 
