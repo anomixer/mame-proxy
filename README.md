@@ -1,70 +1,69 @@
 # MameProxy
 
-MameProxy 是一個基於 Windows WinFsp (Windows File System Proxy) 的虛擬檔案系統，專為 MAME ROM 管理設計。它實現了「延遲下載 (Lazy Download)」機制：當 MAME 請求一個本地不存在的 ROM 時，MameProxy 會自動從指定的遠端伺服器下載該檔案，並無縫提供給 MAME 使用。
+MameProxy is a Windows virtual file system (using WinFsp) designed for MAME ROM management. It implements a **Lazy Download** mechanism: when MAME requests a ROM that doesn't exist locally, MameProxy automatically downloads it from a configured remote server and serves it seamlessly.
 
-## 主要特色
+## Key Features
 
-*   **即時下載**：只有在開啟檔案時才會觸發下載，節省硬碟空間。
-*   **WinFsp 整合**：高效能的虛擬磁碟驅動，操作流暢。
-*   **多模式支援**：支援 `Standalone` (7z) 與 `Split` (zip) 等不同的 ROM 存放結構。
-*   **本地快取**：下載過的檔案會儲存在本地目錄，下次開啟無需重新下載。
-*   **非管理者執行**：支援以磁碟模式 (Disk Mode) 掛載，普通使用者權限即可運作。
+*   **On-Demand Download**: Files are only downloaded when accessed, saving local disk space.
+*   **WinFsp Integration**: High-performance virtual disk driver for a smooth experience.
+*   **Smart Routing**: Automatically handles `Standalone` (7z) and `Split` (zip) directory structures for `mdk.cab`.
+*   **Local Caching**: Downloaded files are stored locally; subsequent access is instant.
+*   **Non-Admin Execution**: Supports Disk Mode mounting, allowing usage without administrative privileges.
 
-## 系統需求
+## Prerequisites
 
 1.  **Windows 10/11**
-2.  **WinFsp**: 必須安裝 WinFsp 驅動程式。
-    *   下載地址：[WinFsp 官方網站](https://winfsp.dev/)
-3.  **Visual Studio 2022**: 用於編譯專案 (需包含 C++ 桌面開發組件)。
+2.  **WinFsp**: You must install the WinFsp driver.
+    *   Download: [WinFsp Official Website](https://winfsp.dev/)
+3.  **Visual Studio 2022**: Required to build the project (with C++ Desktop Development workload).
 
-## 編譯步驟
+## Build Instructions
 
-本專案使用 CMake 進行建置：
+This project uses CMake for building:
 
-1.  使用 Visual Studio 2022 開啟專案資料夾。
-2.  VS 會自動配置 CMake。
-3.  選擇 `Release` 配置並執行「建置全部」。
-4.  編譯產物將位於 `build/Release/MameProxy.exe`。
+1.  Open the project folder in Visual Studio 2022.
+2.  VS will automatically configure CMake.
+3.  Select the `Release` configuration and "Build All".
+4.  The executable will be generated at `build/Release/MameProxy.exe`.
 
-## 使用方法
+## Usage
 
-使用命令列啟動代理程式：
+Start the proxy from the command line:
 
 ```cmd
-MameProxy.exe -m <掛載點> -c <快取路徑> -u <遠端URL>
+MameProxy.exe -m <MountPoint> -c <CacheDir> -u <RemoteURL>
 ```
 
-### 範例：智慧路由模式
+### Example: Smart Routing Mode
 
 ```cmd
 MameProxy.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
 ```
 
-*   **自動偵測**：程式會依據 MAME 請求的檔案類型（.zip 或 .7z）自動在網址後方補上 `split/` 或 `standalone/`。
+*   **Auto-Detection**: The application automatically appends `split/` or `standalone/` to the URL based on whether MAME requests a `.zip` or `.7z` file.
+*   `-m Z:`: Mounts the virtual drive as `Z:`.
+*   `-c C:\MameCache`: Local directory for stored files.
+*   `-u ...`: The base URL for MAME ROM sources.
 
-*   `-m Z:`: 將虛擬磁碟掛載為 `Z:` 槽。
-*   `-c C:\MameCache`: 下載的檔案將儲存於此。
-*   `-u ...`: 指定 MAME ROM 的來源網址。
+## MAME Configuration
 
-## MAME 設定
-
-啟動 MameProxy 後，直接將 MAME 的 `rompath` 指向掛載點即可：
+Once MameProxy is running, point MAME's `rompath` to the mount point:
 
 ```cmd
 mame.exe -rompath Z:\ pacman
 ```
 
-## 注意事項
+## Important Notes
 
-*   **目錄列表**：為了效能考量，`dir Z:\` 只會顯示「已下載」的檔案。如果您知道 ROM 名稱，直接執行即可觸發下載。
-*   **中斷連線**：關閉 `MameProxy.exe` 視窗將會自動卸載虛擬磁碟。
+*   **Directory Listing**: For performance, `dir Z:\` only shows locally cached files. If you know the ROM name, running it directly will trigger the download.
+*   **Termination**: Closing the `MameProxy.exe` window will automatically unmount the virtual drive.
 
-## 技術架構
+## Technical Architecture
 
-*   **WinFsp C++ API**: 核心檔案系統邏輯。
-*   **WinHTTP**: 處理可靠的非同步檔案傳輸。
-*   **Disk Mode Fallback**: 當 Launcher 服務不可用時，自動切換至相容性更高的磁碟模式。
+*   **WinFsp C++ API**: Core file system logic.
+*   **WinHTTP**: Reliable asynchronous file transfers.
+*   **Disk Mode Fallback**: Automatically switches to highly compatible Disk Mode if the Launcher service is unavailable.
 
 ---
-開發者：Antigravity (Advanced Agentic Coding Team)
-專案地址：[GitHub - anomixer/mame-proxy](https://github.com/anomixer/mame-proxy)
+Developer: Antigravity (Advanced Agentic Coding Team)
+Repository: [GitHub - anomixer/mame-proxy](https://github.com/anomixer/mame-proxy)
