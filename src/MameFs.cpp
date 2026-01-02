@@ -205,8 +205,40 @@ NTSTATUS MameFs::SOpen(FSP_FILE_SYSTEM *FileSystem, PWSTR FileName,
 
       // Construct URL. FileName starts with \.
       std::wstring url = m_BaseUrl;
-      if (m_BaseUrl.back() == L'/')
+      if (url.back() == L'/')
         url.pop_back();
+
+      // Smart Routing for mdk.cab
+      std::wstring fileNameStr = FileName;
+      bool isZip = (fileNameStr.length() > 4 &&
+                    fileNameStr.substr(fileNameStr.length() - 4) == L".zip");
+      bool is7z = (fileNameStr.length() > 3 &&
+                   fileNameStr.substr(fileNameStr.length() - 3) == L".7z");
+
+      if (isZip) {
+        if (url.find(L"/standalone") != std::wstring::npos) {
+          size_t pos = url.find(L"/standalone");
+          url.replace(pos, 11, L"/split");
+        } else if (url.find(L"/split") == std::wstring::npos) {
+          if (url.back() != L'/')
+            url += L"/";
+          url += L"split";
+        }
+        std::wcout << L"Routing .zip request to split directory..."
+                   << std::endl;
+      } else if (is7z) {
+        if (url.find(L"/split") != std::wstring::npos) {
+          size_t pos = url.find(L"/split");
+          url.replace(pos, 6, L"/standalone");
+        } else if (url.find(L"/standalone") == std::wstring::npos) {
+          if (url.back() != L'/')
+            url += L"/";
+          url += L"standalone";
+        }
+        std::wcout << L"Routing .7z request to standalone directory..."
+                   << std::endl;
+      }
+
       // Replace \ with /
       std::wstring relPath = FileName;
       for (auto &c : relPath)

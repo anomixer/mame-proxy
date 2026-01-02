@@ -34,11 +34,13 @@ MameProxy 是一個基於 Windows WinFsp (Windows File System Proxy) 的虛擬�
 MameProxy.exe -m <掛載點> -c <快取路徑> -u <遠端URL>
 ```
 
-### 範例：使用 Standalone ROMs (7z)
+### 範例：智慧路由模式
 
 ```cmd
-MameProxy.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/standalone/
+MameProxy.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
 ```
+
+*   **自動偵測**：程式會依據 MAME 請求的檔案類型（.zip 或 .7z）自動在網址後方補上 `split/` 或 `standalone/`。
 
 *   `-m Z:`: 將虛擬磁碟掛載為 `Z:` 槽。
 *   `-c C:\MameCache`: 下載的檔案將儲存於此。
