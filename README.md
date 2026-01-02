@@ -85,6 +85,15 @@ MameProxy acts as an intelligent intermediary. Here is the sequence of events du
 4.  **On-the-Fly Download**: MameProxy constructs the correct URL based on the file extension and fetches it from the remote server (e.g., `mdk.cab`).
 5.  **Seamless Delivery**: Once the download completes, MameProxy provides the file handle back to MAME. MAME continues to load the game as if the file had always been there.
 
+## Supported Scope & Limitations
+
+To keep the application lightweight and efficient, MameProxy focus on files that change most frequently:
+
+*   **Supported**: Game ROMs (`.zip`, `.7z`) and various device/BIOS files requested via `rompath`.
+*   **Unsupported**:
+    *   **Large CHD Files**: Due to their massive size and the fact they change less frequently, it is recommended to manage CHD files manually.
+    *   **Auxiliary Directories**: Such as `snap`, `icons`, `samples`, `software` lists, etc. These assets are generally stable and should be prepared by the player.
+
 ## Important Notes
 
 *   **Directory Listing**: For performance, `dir Z:\` only shows locally cached files. If you know the ROM name, running it directly will trigger the download.
