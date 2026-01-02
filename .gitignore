@@ -1,0 +1,33 @@
+# Build artifacts
+build/
+bin/
+obj/
+out/
+x64/
+Debug/
+Release/
+
+# Visual Studio files
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+CMakeSettings.json
+*.cache
+
+# MameProxy specific
+MameCache/
+proxy_log.txt
+proxy_stdout.txt
+proxy_stderr.txt
+test_*.bat
+test_*.ps1
+
+# System files
+Thumbs.db
+Desktop.ini
+.DS_Store
