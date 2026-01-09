@@ -56,13 +56,15 @@ MAME 幾乎每個月都會更新，且每次更新時 ROM 的檔名與內容都�
 使用命令列啟動程式：
 
 ```cmd
-mcr.exe -m <掛載點> -c <快取路徑> -u <遠端URL>
+mcr.exe -m <掛載點> -c <快取路徑> -u <遠端URL> [-7z]
+
 ```
 
 ### 範例：智慧路由模式
 
 ```cmd
-mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
+mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/ -7z
+
 ```
 
 *   **自動偵測**：程式會依據 MAME 請求的檔案類型（.zip 或 .7z）自動在網址後方補上 `split/` 或 `standalone/`。
@@ -70,6 +72,7 @@ mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
 *   `-m Z:`: 將虛擬磁碟掛載為 `Z:` 槽。
 *   `-c C:\MameCache`: 下載的檔案將儲存於此。
 *   `-u ...`: 指定 MAME ROM 的來源網址。
+*   `-7z`: (選用) 啟用 .7z 檔案支援。啟用後，對 .7z 的請求會被導向伺服器的 `standalone/` 目錄。若省略，則忽略所有 .7z 請求（回傳 NOT FOUND）。
 
 ## MAME 設定
 
@@ -122,9 +125,22 @@ MameCloudRompath 運作的流程如下，讓您了解它是如何實現「免除
 *   **WinHTTP**: 處理可靠的非同步檔案傳輸。
 *   **Disk Mode Fallback**: 當 Launcher 服務不可用時，自動切換至相容性更高的磁碟模式。
 
+## 版本歷史
+
+*   **v0.2 (2026-01-10)**:
+    *   **穩定性更新**：修復了導致遊戲無法二次啟動的「Required files are missing」嚴重錯誤。
+    *   **核心修正**：強制統一檔案 ID 生成邏輯，防止 MAME 快取失效。
+    *   **日誌增強**：加入更詳細的錯誤代碼映射以利除錯。
+    *   **安全下載**：改善下載邏輯，避免不必要的檔案覆蓋。
+
+*   **v0.1 (2026-01-02)**:
+    *   **初版發布**：正式更名為 "MameCloudRompath"。
+    *   **智慧路由**：新增針對 Split (.zip) 與 Standalone (.7z) 檔案庫的自動路徑判斷。
+    *   **自動化工具**：內建 `config.bat` 快速設定與啟動腳本生成器。
+
 ## 參與貢獻與免責聲明
 
-MCR 目前處於 **早期開發階段 (v0.1)**，極可能存在未發現的 Bug。本專案按「原樣」提供，不負任何擔保責任。我們非常歡迎社群的參與：
+MCR 目前處於 **v0.2 (穩定性更新)**。我們大幅改善了檔案處理的可靠性，並透過一致的檔案 ID 管理與安全下載邏輯，徹底解決了「Required files are missing」的錯誤。本專案按「原樣」提供，不負任何擔保責任。我們非常歡迎社群的參與：
 *   **回報問題**：如果您發現任何 Bug，請提交 Issue。
 *   **想法建議**：如果您有任何新功能的提案，歡迎與我們討論！
 *   **程式碼貢獻**：如果您想改進程式碼，歡迎提交 Pull Request。

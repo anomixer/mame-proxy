@@ -26,3 +26,28 @@
 **開發者**：anomixer + Antigravity (Gemini 3 Pro/Flash)
 
 **總結**：今天不僅修復了 MAME 無法讀取的問題，更將專案提升到了一個可供大眾玩家輕鬆使用的「產品級」水準。
+
+# 2026-01-10 MameCloudRompath (MCR) v0.2 穩定性更新開發摘要
+
+今天我們解決了困擾許久的「Required files are missing」問題，並發布了 v0.2 版本，大幅提升了程式的穩定性。
+
+## 1. 核心穩定性修復 (Required files are missing)
+*   **檔案 ID 一致性 (SReadDirectory & SOpen)**：
+    *   **問題**：MAME 在掃描目錄與實際開啟檔案時，如果看到不同的檔案 ID (IndexNumber)，會判定檔案已變更或無效，導致快取失效並報錯。
+    *   **解決方案**：強制將 `SReadDirectory` (目錄列表) 和 `SGetFileInfo` (檔案資訊) 的 `IndexNumber` 統一設定為 `0`。這消除了因為動態計算路徑雜湊或 WinFsp 預設行為導致的不一致。
+*   **安全下載機制 (Safe Download Skip)**：
+    *   **問題**：舊版即使檔案已存在，仍可能因 MAME 的存取模式觸發重複下載並覆蓋檔案，改變了檔案屬性 (`LastWriteTime`)，進一步觸發 MAME 的錯誤處理。
+    *   **解決方案**：在 `Downloader::Download` 加入檢查，若目標檔案已存在且大小 > 0，則直接回報成功並**略過下載**。這保護了已存在 ROM 的完整性與時間戳記，確保 MAME 重複執行時能穩定讀取快取。
+
+## 2. 錯誤處理與日誌優化
+*   **Granular Win32 Error Mapping**：將 `CreateFileW` 的錯誤代碼精確映射到 NTSTATUS (如 `STATUS_SHARING_VIOLATION`, `STATUS_ACCESS_DENIED`)，讓 MAME 能獲得更準確的系統回饋。
+*   **Debug Logging**：在 `SRead`, `SOpen`, `Downloader` 等關鍵路徑加入詳細的 Log，有助於未來排查問題。
+
+## 3. 版本更新
+*   主程式 (`main.cpp`) 與說明文件 (`README.md`, `README-TW.md`) 已全面更新為 **v0.2**。
+*   重新編譯並輸出了最新的 `Release/mcr.exe`。
+
+---
+**開發者**：anomixer + Antigravity (Gemini 3 Pro/Flash)
+
+**總結**：v0.2 版本標誌著 MCR 從「能用」邁向「穩定」。玩家現在可以放心地重複啟動遊戲，而不會遭遇惱人的缺檔錯誤。

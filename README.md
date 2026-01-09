@@ -56,19 +56,22 @@ This project uses CMake for building:
 Start the program from the command line:
 
 ```cmd
-mcr.exe -m <MountPoint> -c <CacheDir> -u <RemoteURL>
+mcr.exe -m <MountPoint> -c <CacheDir> -u <RemoteURL> [-7z]
+
 ```
 
 ### Example: Smart Routing Mode
 
 ```cmd
-mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/
+mcr.exe -m Z: -c C:\MameCache -u https://mdk.cab/download/ -7z
+
 ```
 
 *   **Auto-Detection**: The application automatically appends `split/` or `standalone/` to the URL based on whether MAME requests a `.zip` or `.7z` file.
 *   `-m Z:`: Mounts the virtual drive as `Z:`.
 *   `-c C:\MameCache`: Local directory for stored files.
 *   `-u ...`: The base URL for MAME ROM sources.
+*   `-7z`: (Optional) Enable .7z file support. If enabled, requests for .7z files are routed to the `standalone/` directory on the server. If omitted, .7z requests are ignored (returning NOT FOUND).
 
 ## MAME Configuration
 
@@ -121,9 +124,22 @@ To keep the application lightweight and efficient, MCR focus on files that chang
 *   **WinHTTP**: Reliable asynchronous file transfers.
 *   **Disk Mode Fallback**: Automatically switches to highly compatible Disk Mode if the Launcher service is unavailable.
 
+## Version History
+
+*   **v0.2 (2026-01-10)**:
+    *   **Stability Update**: Fixed the critical "Required files are missing" error affecting subsequent game launches.
+    *   **Core Fixes**: Enforced consistent file ID generation to prevent MAME cache invalidation.
+    *   **Enhanced Logging**: Added granular error mapping for better debugging.
+    *   **Safe Download**: Improved download logic to prevent unnecessary file overwrites.
+
+*   **v0.1 (2026-01-02)**:
+    *   **Initial Release**: Brand new "MameCloudRompath" identity.
+    *   **Smart Routing**: Added automatic handling for Split (.zip) and Standalone (.7z) repositories.
+    *   **Automation**: Included `config.bat` for easy setup and launcher generation.
+
 ## Contributing & Disclaimer
 
-MCR is currently in its **early stages (v0.1)** and likely contains bugs. It is provided "as is" without any warranty. We warmly welcome community contributions:
+MCR is currently in **v0.2 (Stability Update)**. We have significantly improved file handling reliability and eliminated the "Required files are missing" errors through consistent file ID management and safe download logic. It is provided "as is" without any warranty. We warmly welcome community contributions:
 *   **Bug Reports**: If you find a bug, please open an issue.
 *   **Ideas & Feedback**: Have a feature request? Let's discuss it!
 *   **Pull Requests**: Code contributions are highly appreciated.

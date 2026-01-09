@@ -1,4 +1,5 @@
 #include "Downloader.h"
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -73,6 +74,49 @@ bool Downloader::Download(const std::wstring &url,
     return false;
   }
 
+  // Get Content-Length for debugging and validation
+  DWORD dwContentLength = 0;
+  DWORD dwCLSize = sizeof(dwContentLength);
+  WinHttpQueryHeaders(hRequest,
+                      WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
+                      WINHTTP_HEADER_NAME_BY_INDEX, &dwContentLength, &dwCLSize,
+                      WINHTTP_NO_HEADER_INDEX);
+  std::wcout << L"Content-Length: " << dwContentLength << std::endl;
+
+  // Abort if Content-Length is 0
+  if (dwContentLength == 0) {
+    std::wcerr << L"Error: Content-Length is 0. Aborting download."
+               << std::endl;
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+    return false;
+  }
+
+  // Simple skip: If file exists and has data, assume it's good.
+  // This prevents MAME from seeing file changes/timestamp updates during
+  // re-runs.
+  try {
+    if (std::filesystem::exists(destination) &&
+        std::filesystem::file_size(destination) > 0) {
+      std::wcout << L"Skipping download (file exists): " << destination
+                 << std::endl;
+      WinHttpCloseHandle(hRequest);
+      WinHttpCloseHandle(hConnect);
+      WinHttpCloseHandle(hSession);
+      return true;
+    }
+  } catch (...) {
+    // Ignore errors, proceed to download
+  }
+
+  // Ensure directory exists ONLY after successful header check
+  std::filesystem::path destPath(destination);
+  std::filesystem::path dirPath = destPath.parent_path();
+  if (!std::filesystem::exists(dirPath)) {
+    std::filesystem::create_directories(dirPath);
+  }
+
   std::ofstream outFile(destination, std::ios::binary);
   if (!outFile.is_open()) {
     std::wcerr << L"Failed to open local file: " << destination << std::endl;
@@ -83,6 +127,7 @@ bool Downloader::Download(const std::wstring &url,
   }
 
   DWORD dwDownloaded = 0;
+  DWORD dwTotalDownloaded = 0;
   do {
     dwSize = 0;
     if (!WinHttpQueryDataAvailable(hRequest, &dwSize))
@@ -97,17 +142,72 @@ bool Downloader::Download(const std::wstring &url,
     if (WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize,
                         &dwDownloaded)) {
       outFile.write(pszOutBuffer, dwDownloaded);
+      dwTotalDownloaded += dwDownloaded;
     }
     delete[] pszOutBuffer;
   } while (dwSize > 0);
 
   outFile.close();
-  std::cout << "Download completed successfully." << std::endl;
+
+  if (dwTotalDownloaded == 0) {
+    std::wcerr << L"Error: Downloaded file is empty (0 bytes). Deleting."
+               << std::endl;
+    std::filesystem::remove(destination);
+
+    // Attempt to remove the parent directory if it's empty
+    try {
+      if (std::filesystem::exists(dirPath) &&
+          std::filesystem::is_empty(dirPath)) {
+        std::filesystem::remove(dirPath);
+        std::wcerr << L"Removed empty parent directory: " << dirPath.wstring()
+                   << std::endl;
+      }
+    } catch (...) {
+      // Ignore errors during cleanup
+    }
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+    return false;
+  }
+
+  std::cout << "Download completed successfully. Total bytes: "
+            << dwTotalDownloaded << std::endl;
 
   WinHttpCloseHandle(hRequest);
   WinHttpCloseHandle(hConnect);
   WinHttpCloseHandle(hSession);
   return true;
+}
+
+bool Downloader::ExtractFileFromZip(const std::wstring &zipPath,
+                                    const std::wstring &fileName,
+                                    const std::wstring &destPath) {
+  // Ensure destination directory exists
+  std::filesystem::path dest(destPath);
+  std::filesystem::path destDir = dest.parent_path();
+  std::filesystem::create_directories(destDir);
+
+  // Construct tar command: tar -xf zipPath -C destDir fileName
+  // Note: tar on Windows handles .zip files well.
+  std::wstring command = L"tar -xf \"" + zipPath + L"\" -C \"" +
+                         destDir.wstring() + L"\" \"" + fileName + L"\"";
+
+  // Use CreateProcess to run tar safely (or system for simplicity in this
+  // context) For robustness, we'll use _wsystem but hide output effectively?
+  // Actually, seeing output is good for now.
+
+  // std::wcout << L"Attempting extraction: " << command << std::endl;
+  int result = _wsystem(command.c_str());
+
+  if (result == 0 && std::filesystem::exists(dest)) {
+    std::wcout << L"Extracted: " << fileName << std::endl;
+    return true;
+  }
+
+  std::wcerr << L"Extraction failed for: " << fileName << L" from " << zipPath
+             << std::endl;
+  return false;
 }
 
 std::wstring Downloader::GetHostname(const std::wstring &url) {

@@ -1,7 +1,12 @@
 #include "MameFs.h"
 #include "Downloader.h"
+#include <filesystem>
+#include <functional>
 #include <iostream>
-#include <shlwapi.h> // PathCombine
+#include <string>
+#include <winfsp/winfsp.h>
+
+// PathCombine
 #include <winternl.h> // For NTSTATUS values if needed, otherwise Fsp headers usually provide them
 
 #pragma comment(lib, "shlwapi.lib")
@@ -20,11 +25,22 @@ struct MameFileContext {
 
   MameFileContext()
       : Handle(INVALID_HANDLE_VALUE), FindHandle(INVALID_HANDLE_VALUE),
-        IsDirectory(false) {}
+        IsDirectory(false) {
+    memset(&FindData, 0, sizeof(FindData));
+  }
 };
+
+static UINT64 GetPathHash(const std::wstring &path) {
+  std::wstring lowerPath = path;
+  for (auto &c : lowerPath)
+    c = towlower(c);
+  std::hash<std::wstring> hasher;
+  return (UINT64)hasher(lowerPath);
+}
 
 std::wstring MameFs::m_CacheDir;
 std::wstring MameFs::m_BaseUrl;
+bool MameFs::m_Enable7z = false;
 
 std::wstring MameFs::GetLocalPath(PCWSTR fileName) {
   // Skip leading slash of fileName if present to append cleanly?
@@ -42,9 +58,10 @@ std::wstring MameFs::GetLocalPath(PCWSTR fileName) {
 }
 
 int MameFs::Run(const std::wstring &mountPoint, const std::wstring &cacheDir,
-                const std::wstring &baseUrl) {
+                const std::wstring &baseUrl, bool enable7z) {
   m_CacheDir = cacheDir;
   m_BaseUrl = baseUrl;
+  m_Enable7z = enable7z;
 
   // Ensure cache dir exists
   CreateDirectoryW(m_CacheDir.c_str(), NULL);
@@ -73,7 +90,8 @@ int MameFs::Run(const std::wstring &mountPoint, const std::wstring &cacheDir,
   VolumeParams.SectorSize = 4096;
   VolumeParams.SectorsPerAllocationUnit = 1;
   VolumeParams.MaxComponentLength = 255;
-  VolumeParams.FileInfoTimeout = 1000;
+  VolumeParams.FileInfoTimeout = 0; // Disable caching to force SGetFileInfo and
+                                    // ensure HardLinks=1 is always fresh
   VolumeParams.CaseSensitiveSearch = 0;
   VolumeParams.CasePreservedNames = 1;
   VolumeParams.UnicodeOnDisk = 1;
@@ -188,114 +206,179 @@ NTSTATUS MameFs::SCreate(FSP_FILE_SYSTEM *FileSystem, PWSTR FileName,
 NTSTATUS MameFs::SOpen(FSP_FILE_SYSTEM *FileSystem, PWSTR FileName,
                        UINT32 CreateOptions, UINT32 GrantedAccess,
                        PVOID *PFileContext, FSP_FSCTL_FILE_INFO *FileInfo) {
-  std::wcout << L"DEBUG: SOpen " << FileName << std::endl;
-  std::wstring localPath = GetLocalPath(FileName);
-  DWORD fileAttr = GetFileAttributesW(localPath.c_str());
+  try {
+    std::wcout << L"DEBUG: SOpen " << FileName << std::endl;
+    std::wstring localPath = GetLocalPath(FileName);
 
-  // Download logic
-  if (fileAttr == INVALID_FILE_ATTRIBUTES) {
-    // File doesn't exist. Check if we should download.
-    // Only download if it looks like a file (not root) and we are not just
-    // asking for attributes (maybe?) CreateOptions & FILE_DIRECTORY_FILE checks
-    // if we expect a directory.
+    // Heuristic: Is this an archive or a split file?
+    std::wstring fileNameStr = FileName;
+    bool isZip = (fileNameStr.length() > 4 &&
+                  fileNameStr.substr(fileNameStr.length() - 4) == L".zip");
+    bool is7z = (fileNameStr.length() > 3 &&
+                 fileNameStr.substr(fileNameStr.length() - 3) == L".7z");
+    bool isRoot = (wcscmp(FileName, L"\\") == 0);
+    bool isDirectoryRequest = (CreateOptions & FILE_DIRECTORY_FILE);
 
-    if (wcscmp(FileName, L"\\") != 0 &&
-        !(CreateOptions & FILE_DIRECTORY_FILE)) {
-      // Try download
-      std::wcout << L"File missing, downloading: " << FileName << std::endl;
+    // If it's a directory or root, handle normally (create/open local dir).
+    if (isRoot || isDirectoryRequest) {
+      if (GetFileAttributesW(localPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        std::filesystem::create_directories(localPath);
+      }
+    } else if (!isZip && !is7z) {
+      // It is a single file request (e.g., \sf2ce\rom.bin).
+      // PER USER REQUEST: DO NOT SERVE IT. DO NOT DOWNLOAD IT.
+      // Instead, ensure parent ZIP exists, then return NOT FOUND.
 
-      // Construct URL. FileName starts with \.
-      std::wstring url = m_BaseUrl;
-      if (url.back() == L'/')
-        url.pop_back();
+      std::filesystem::path p(localPath);
+      if (p.has_parent_path()) {
+        std::filesystem::path parentDir = p.parent_path(); // e.g. ...\sf2ce
+        // Check if parent directory name matches the expected zip name pattern
+        // logic
+        std::wstring parentDirName = parentDir.filename().wstring();
+        if (parentDirName != L"mamecache" &&
+            !parentDirName.empty()) { // Avoid root cache dir itself
+          std::wstring zipFileName = parentDirName + L".zip";
+          std::filesystem::path cacheRoot = parentDir.parent_path();
+          std::filesystem::path zipPath = cacheRoot / zipFileName;
 
-      // Smart Routing for mdk.cab
-      std::wstring fileNameStr = FileName;
-      bool isZip = (fileNameStr.length() > 4 &&
-                    fileNameStr.substr(fileNameStr.length() - 4) == L".zip");
-      bool is7z = (fileNameStr.length() > 3 &&
-                   fileNameStr.substr(fileNameStr.length() - 3) == L".7z");
+          // Proactively download ZIP if missing
+          if (!std::filesystem::exists(zipPath)) {
+            std::wstring zipUrl = m_BaseUrl;
+            if (zipUrl.back() == L'/')
+              zipUrl.pop_back();
+            zipUrl += L"/split/" + zipFileName;
 
-      if (isZip) {
-        if (url.find(L"/standalone") != std::wstring::npos) {
-          size_t pos = url.find(L"/standalone");
-          url.replace(pos, 11, L"/split");
-        } else if (url.find(L"/split") == std::wstring::npos) {
-          if (url.back() != L'/')
-            url += L"/";
-          url += L"split";
+            std::wcout
+                << L"Split file requested. Triggering proactive ZIP download: "
+                << zipUrl << std::endl;
+            Downloader::Download(zipUrl, zipPath.wstring());
+          }
         }
-        std::wcout << L"Routing .zip request to split directory..."
-                   << std::endl;
-      } else if (is7z) {
-        if (url.find(L"/split") != std::wstring::npos) {
-          size_t pos = url.find(L"/split");
-          url.replace(pos, 6, L"/standalone");
-        } else if (url.find(L"/standalone") == std::wstring::npos) {
-          if (url.back() != L'/')
-            url += L"/";
-          url += L"standalone";
-        }
-        std::wcout << L"Routing .7z request to standalone directory..."
-                   << std::endl;
       }
 
-      // Replace \ with /
-      std::wstring relPath = FileName;
-      for (auto &c : relPath)
-        if (c == L'\\')
-          c = L'/';
-      url += relPath;
-
-      if (Downloader::Download(url, localPath)) {
-        std::wcout << L"Download success: " << localPath << std::endl;
-        fileAttr = GetFileAttributesW(localPath.c_str());
-      } else {
-        std::wcerr << L"Download failed: " << url << std::endl;
-        return STATUS_OBJECT_NAME_NOT_FOUND;
-      }
+      // Always return NOT FOUND for single files to force MAME to use the ZIP.
+      return STATUS_OBJECT_NAME_NOT_FOUND;
     } else {
-      return STATUS_OBJECT_NAME_NOT_FOUND;
-    }
-  }
+      // It IS an archive (.zip or .7z). Handle normal download logic.
+      if (GetFileAttributesW(localPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        std::wstring url = m_BaseUrl;
+        if (url.back() == L'/')
+          url.pop_back();
 
-  HANDLE hFile = CreateFileW(localPath.c_str(), GENERIC_READ,
-                             FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                             OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-  if (hFile == INVALID_HANDLE_VALUE) {
+        if (isZip) {
+          if (url.find(L"/standalone") != std::wstring::npos) {
+            size_t pos = url.find(L"/standalone");
+            url.replace(pos, 11, L"/split");
+          } else if (url.find(L"/split") == std::wstring::npos) {
+            if (url.back() != L'/')
+              url += L"/";
+            url += L"split";
+          }
+          std::wcout << L"Routing .zip request to split directory..."
+                     << std::endl;
+        } else if (is7z) {
+          if (!m_Enable7z) {
+            std::wcerr << L"Ignored .7z request (7z support disabled)."
+                       << std::endl;
+            return STATUS_OBJECT_NAME_NOT_FOUND;
+          }
+          if (url.find(L"/split") != std::wstring::npos) {
+            size_t pos = url.find(L"/split");
+            url.replace(pos, 6, L"/standalone");
+          } else if (url.find(L"/standalone") == std::wstring::npos) {
+            if (url.back() != L'/')
+              url += L"/";
+            url += L"standalone";
+          }
+          std::wcout << L"Routing .7z request to standalone directory..."
+                     << std::endl;
+        }
+
+        // Append filename (convert \ to /)
+        std::wstring relPath = FileName;
+        for (auto &c : relPath)
+          if (c == L'\\')
+            c = L'/';
+        url += relPath;
+
+        if (!Downloader::Download(url, localPath)) {
+          std::wcerr << L"Download failed for archive: " << url << std::endl;
+          return STATUS_OBJECT_NAME_NOT_FOUND;
+        }
+        std::wcout << L"Download success for archive: " << localPath
+                   << std::endl;
+      }
+    }
+
+    DWORD fileAttr = GetFileAttributesW(localPath.c_str());
+    bool isDir = (fileAttr != INVALID_FILE_ATTRIBUTES) &&
+                 (fileAttr & FILE_ATTRIBUTE_DIRECTORY);
+    DWORD flags = FILE_ATTRIBUTE_NORMAL;
+    if (isDir)
+      flags |= FILE_FLAG_BACKUP_SEMANTICS;
+    if (isZip || is7z)
+      flags |= FILE_FLAG_RANDOM_ACCESS;
+
+    HANDLE hFile =
+        CreateFileW(localPath.c_str(), GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    NULL, OPEN_EXISTING, flags, NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) {
+      DWORD err = GetLastError();
+      std::wcerr << L"CreateFileW failed for " << localPath << L": " << err
+                 << std::endl;
+      if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND)
+        return STATUS_OBJECT_NAME_NOT_FOUND;
+      if (err == ERROR_ACCESS_DENIED)
+        return STATUS_ACCESS_DENIED;
+      if (err == ERROR_SHARING_VIOLATION)
+        return STATUS_SHARING_VIOLATION;
+      return STATUS_UNSUCCESSFUL;
+    }
+
+    // FileOpened: // Label no longer needed with refactored logic
+    MameFileContext *ctx = new MameFileContext();
+    ctx->Handle = hFile;
+    ctx->Path = localPath;
+    ctx->IsDirectory =
+        (GetFileAttributesW(localPath.c_str()) & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    ctx->FindHandle = INVALID_HANDLE_VALUE;
+
+    *PFileContext = ctx;
+
+    BY_HANDLE_FILE_INFORMATION info;
+    if (GetFileInformationByHandle(hFile, &info)) {
+      FileInfo->FileAttributes = info.dwFileAttributes;
+      FileInfo->ReparseTag = 0;
+      FileInfo->AllocationSize =
+          ((UINT64)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+      FileInfo->FileSize = FileInfo->AllocationSize;
+      FileInfo->CreationTime = FileTimeToInt64(info.ftCreationTime);
+      FileInfo->LastAccessTime = FileTimeToInt64(info.ftLastAccessTime);
+      FileInfo->LastWriteTime = FileTimeToInt64(info.ftLastWriteTime);
+      FileInfo->ChangeTime = FileInfo->LastWriteTime;
+      FileInfo->ChangeTime = FileInfo->LastWriteTime;
+      FileInfo->IndexNumber = GetPathHash(localPath);
+      FileInfo->HardLinks = 1; // Force 1 to pacify usage limits "Too many
+                               // links" error in MAME/unzip
+      std::wcout << L"DEBUG: SOpen success, Index=" << FileInfo->IndexNumber
+                 << L", Links=" << FileInfo->HardLinks << std::endl;
+      return STATUS_SUCCESS;
+    }
     DWORD err = GetLastError();
-    if (err == ERROR_FILE_NOT_FOUND)
-      return STATUS_OBJECT_NAME_NOT_FOUND;
-    if (err == ERROR_ACCESS_DENIED)
-      return STATUS_ACCESS_DENIED;
+    std::wcerr << L"GetFileInformationByHandle failed in SOpen: " << err
+               << L" for " << localPath << std::endl;
+    delete ctx;
+    CloseHandle(hFile);
+    return STATUS_UNSUCCESSFUL;
+  } catch (const std::exception &e) {
+    std::wcerr << L"Exception in SOpen: " << e.what() << std::endl;
+    return STATUS_UNSUCCESSFUL;
+  } catch (...) {
+    std::wcerr << L"Unknown exception in SOpen" << std::endl;
     return STATUS_UNSUCCESSFUL;
   }
-
-  MameFileContext *ctx = new MameFileContext();
-  ctx->Handle = hFile;
-  ctx->Path = localPath;
-  ctx->IsDirectory =
-      (GetFileAttributesW(localPath.c_str()) & FILE_ATTRIBUTE_DIRECTORY) != 0;
-
-  *PFileContext = ctx;
-
-  // Fill FileInfo
-  BY_HANDLE_FILE_INFORMATION info;
-  if (GetFileInformationByHandle(hFile, &info)) {
-    FileInfo->FileAttributes = info.dwFileAttributes;
-    FileInfo->ReparseTag = 0;
-    FileInfo->AllocationSize =
-        ((UINT64)info.nFileSizeHigh << 32) | info.nFileSizeLow;
-    FileInfo->FileSize = FileInfo->AllocationSize;
-    FileInfo->CreationTime = FileTimeToInt64(info.ftCreationTime);
-    FileInfo->LastAccessTime = FileTimeToInt64(info.ftLastAccessTime);
-    FileInfo->LastWriteTime = FileTimeToInt64(info.ftLastWriteTime);
-    FileInfo->ChangeTime = FileInfo->LastWriteTime;
-    FileInfo->IndexNumber = 0;
-    FileInfo->HardLinks = 0;
-  }
-
-  return STATUS_SUCCESS;
 }
 
 // Helper defines if not present
@@ -309,6 +392,7 @@ void MameFs::SClose(FSP_FILE_SYSTEM *FileSystem, PVOID FileContext) {
   MameFileContext *ctx = (MameFileContext *)FileContext;
   if (ctx) {
     if (ctx->Handle != INVALID_HANDLE_VALUE) {
+      // std::wcout << L"DEBUG: SClose Handle " << ctx->Handle << std::endl;
       CloseHandle(ctx->Handle);
     }
     if (ctx->FindHandle != INVALID_HANDLE_VALUE) {
@@ -349,7 +433,26 @@ NTSTATUS MameFs::SRead(FSP_FILE_SYSTEM *FileSystem, PVOID FileContext,
       *PBytesTransferred = 0;
       return STATUS_END_OF_FILE;
     }
+    std::wcerr << L"SRead failed: " << err << std::endl;
     return STATUS_UNSUCCESSFUL;
+  }
+
+  // Debug partial reads
+  if (bytesRead < Length) {
+    // Check if EOF?
+    // We can't easily check EOF without another call or knowing size.
+    // But for now let's just log it if it's suspicious.
+    // actually, short reads are valid at EOF.
+    // Let's explicitly check if we are at EOF.
+    BY_HANDLE_FILE_INFORMATION info;
+    if (GetFileInformationByHandle(ctx->Handle, &info)) {
+      UINT64 size = ((UINT64)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+      if (Offset + bytesRead < size) {
+        std::wcerr << L"WARNING: SRead partial read in middle of file! Req="
+                   << Length << L" Read=" << bytesRead << L" Off=" << Offset
+                   << L" Size=" << size << std::endl;
+      }
+    }
   }
 
   *PBytesTransferred = bytesRead;
@@ -373,10 +476,15 @@ NTSTATUS MameFs::SGetFileInfo(FSP_FILE_SYSTEM *FileSystem, PVOID FileContext,
     FileInfo->LastAccessTime = FileTimeToInt64(info.ftLastAccessTime);
     FileInfo->LastWriteTime = FileTimeToInt64(info.ftLastWriteTime);
     FileInfo->ChangeTime = FileInfo->LastWriteTime;
-    FileInfo->IndexNumber = 0;
-    FileInfo->HardLinks = 0;
+    FileInfo->IndexNumber = 0; // consistent with SReadDirectory
+    FileInfo->HardLinks = 1;   // Force 1 here too
+    // std::wcout << L"SGetFileInfo: Index=" << FileInfo->IndexNumber << L"
+    // Links=" << FileInfo->HardLinks << std::endl;
     return STATUS_SUCCESS;
   }
+  DWORD err = GetLastError();
+  std::wcerr << L"GetFileInformationByHandle failed in SGetFileInfo: " << err
+             << std::endl;
   return STATUS_UNSUCCESSFUL;
 }
 
@@ -456,8 +564,8 @@ NTSTATUS MameFs::SReadDirectory(FSP_FILE_SYSTEM *FileSystem, PVOID FileContext,
 
     // Wait, earlier I used `pDirInfo->FileNameBuf` and the error was
     // `undeclared identifier 'pDirInfo'`. It didn't complain about
-    // `FileNameBuf` because it failed parsing `pDirInfo` definition first! So I
-    // don't know if `FileNameBuf` is correct. Standard WinFsp uses
+    // `FileNameBuf` because it failed parsing `pDirInfo` definition first! So
+    // I don't know if `FileNameBuf` is correct. Standard WinFsp uses
     // `FileNameBuf`.
 
     memcpy(pDirInfo->FileNameBuf, ctx->FindData.cFileName,
@@ -476,8 +584,9 @@ NTSTATUS MameFs::SReadDirectory(FSP_FILE_SYSTEM *FileSystem, PVOID FileContext,
     pDirInfo->FileInfo.LastWriteTime =
         FileTimeToInt64(ctx->FindData.ftLastWriteTime);
     pDirInfo->FileInfo.ChangeTime = pDirInfo->FileInfo.LastWriteTime;
+
     pDirInfo->FileInfo.IndexNumber = 0;
-    pDirInfo->FileInfo.HardLinks = 0;
+    pDirInfo->FileInfo.HardLinks = 1;
 
     // Manual FillDirectoryBuffer implementation to bypass overloading issues
     // Check if we have space

@@ -5,7 +5,7 @@
 class MameFs {
 public:
   static int Run(const std::wstring &mountPoint, const std::wstring &cacheDir,
-                 const std::wstring &baseUrl);
+                 const std::wstring &baseUrl, bool enable7z);
 
 private:
   static NTSTATUS SGetVolumeInfo(FSP_FILE_SYSTEM *FileSystem,
@@ -41,6 +41,7 @@ private:
 
   static std::wstring m_CacheDir;
   static std::wstring m_BaseUrl;
+  static bool m_Enable7z;
 
   static std::wstring GetLocalPath(PCWSTR fileName);
 };
